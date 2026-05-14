@@ -34,20 +34,12 @@
       opacity: 0.9;
     }
 
-    #file-input {
-      color: #eee;
-    }
-
     #viewer-container {
       position: absolute;
       top: 48px;
       left: 0;
       right: 0;
       bottom: 0;
-    }
-
-    canvas {
-      display: block;
     }
   </style>
 </head>
@@ -57,74 +49,60 @@
     <span>Wybierz plik IFC:</span>
     <input id="file-input" type="file" accept=".ifc" />
   </div>
+
   <div id="viewer-container"></div>
 
-  <!-- IFC.js + Three.js z CDN -->
   <script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-    import { IFCLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/IFCLoader.js';
-    
-    const container = document.getElementById('viewer-container');
-    ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.46/");
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+    import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+    import { IFCLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/IFCLoader.js";
 
-    // Scena, kamera, renderer
+    // --- Loader IFC ---
+    const ifcLoader = new IFCLoader();
+    ifcLoader.ifcManager.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.46/");
+
+    // --- Scena ---
+    const container = document.getElementById("viewer-container");
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x111111);
 
+    // --- Kamera ---
     const camera = new THREE.PerspectiveCamera(
       60,
       container.clientWidth / container.clientHeight,
       0.1,
-      1000
+      2000
     );
     camera.position.set(15, 10, 15);
 
+    // --- Renderer ---
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // Światło
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
-    hemiLight.position.set(0, 50, 0);
-    scene.add(hemiLight);
-
+    // --- Światła ---
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.0));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(10, 20, 10);
     scene.add(dirLight);
 
-    // Podłoże
-    const grid = new THREE.GridHelper(50, 50, 0x444444, 0x222222);
-    scene.add(grid);
+    // --- Grid ---
+    scene.add(new THREE.GridHelper(50, 50, 0x444444, 0x222222));
 
-    // Kontroler kamery
+    // --- Kontroler kamery ---
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    // Loader IFC
-    const ifcLoader = new IFCLoader();
-    // (opcjonalnie) ścieżka do web-ifc.wasm, jeśli chcesz hostować samemu:
-    // ifcLoader.ifcManager.setWasmPath("wasm/");
-
     let currentModel = null;
 
-    // Wczytywanie pliku z inputa
-    const input = document.getElementById('file-input');
-    input.addEventListener('change', async (event) => {
+    // --- Wczytywanie pliku IFC ---
+    document.getElementById("file-input").addEventListener("change", async (event) => {
       const file = event.target.files[0];
       if (!file) return;
 
-      // Usuwamy poprzedni model
       if (currentModel) {
         scene.remove(currentModel);
-        currentModel.geometry?.dispose();
-        if (Array.isArray(currentModel.material)) {
-          currentModel.material.forEach(m => m.dispose());
-        } else {
-          currentModel.material?.dispose();
-        }
-        currentModel = null;
       }
 
       const url = URL.createObjectURL(file);
@@ -135,7 +113,7 @@
           currentModel = ifcModel;
           scene.add(ifcModel);
 
-          // Dopasowanie kamery do modelu
+          // Auto-centrowanie kamery
           const box = new THREE.Box3().setFromObject(ifcModel);
           const size = box.getSize(new THREE.Vector3()).length();
           const center = box.getCenter(new THREE.Vector3());
@@ -143,35 +121,31 @@
           controls.target.copy(center);
           controls.update();
 
-          const distance = size * 1.5;
-          const dir = new THREE.Vector3(1, 1, 1).normalize();
-          camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
+          camera.position.copy(center.clone().add(new THREE.Vector3(1, 1, 1).normalize().multiplyScalar(size)));
           camera.near = size / 100;
           camera.far = size * 10;
           camera.updateProjectionMatrix();
         },
         (xhr) => {
-          // Prosty log postępu
           if (xhr.total) {
-            const percent = (xhr.loaded / xhr.total) * 100;
-            console.log(`Wczytywanie IFC: ${percent.toFixed(1)}%`);
+            console.log(`Wczytywanie IFC: ${(xhr.loaded / xhr.total * 100).toFixed(1)}%`);
           }
         },
         (error) => {
-          console.error('Błąd podczas wczytywania IFC:', error);
-          alert('Nie udało się wczytać pliku IFC. Sprawdź konsolę przeglądarki.');
+          console.error("Błąd IFC:", error);
+          alert("Nie udało się wczytać pliku IFC.");
         }
       );
     });
 
-    // Responsywność
-    window.addEventListener('resize', () => {
+    // --- Responsywność ---
+    window.addEventListener("resize", () => {
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
     });
 
-    // Pętla renderująca
+    // --- Render ---
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
@@ -181,4 +155,3 @@
   </script>
 </body>
 </html>
-
