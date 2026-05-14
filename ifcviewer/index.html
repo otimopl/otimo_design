@@ -65,9 +65,8 @@
     import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
     import { IFCLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/IFCLoader.js';
     
-    ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.46/");
-
     const container = document.getElementById('viewer-container');
+    ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.46/");
 
     // Scena, kamera, renderer
     const scene = new THREE.Scene();
